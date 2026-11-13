@@ -1,0 +1,7 @@
+overturemaps
+pyarrow
+numpy
+shapely>=2.0
+pillow
+tifffile
+imagecodecs

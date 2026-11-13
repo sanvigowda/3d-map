@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0F1F">
+<!--head-->
+<title>SafeNisha Bengaluru Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@500&text=%E0%B2%AC%E0%B3%86%E0%B2%82%E0%B2%97%E0%B2%B3%E0%B3%82%E0%B2%B0%E0%B3%81&display=swap">
+<link rel="stylesheet" href="map.css">
+<!--/head-->
+</head>
+<body>
+<!--body-->
+<div id="app" data-host="pending">
+  <canvas id="view" tabindex="0" aria-label="Interactive 3D map of Bengaluru. Drag to move, scroll to zoom, right-drag to turn."></canvas>
+  <div id="overlay" aria-hidden="true"></div>
+
+  <div class="hud">
+    <div class="row top">
+      <header class="panel brand">
+        <div class="eyebrow">SafeNisha · risk-aware walking map</div>
+        <h1>BENGALURU <span lang="kn">ಬೆಂಗಳೂರು</span></h1>
+        <p id="subtitle">Built from open map data</p>
+        <form class="search" id="searchForm" role="search" autocomplete="off">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="search" type="search" placeholder="Search a neighbourhood or landmark" aria-label="Search a neighbourhood or landmark" aria-controls="results" autocomplete="off" spellcheck="false">
+          <ul id="results" role="listbox" hidden></ul>
+        </form>
+      </header>
+
+      <div class="panel tools" role="toolbar" aria-label="Map tools">
+        <button id="compass" type="button" title="Face north" aria-label="Face north">
+          <svg id="needle" width="22" height="22" viewBox="-11 -11 22 22" aria-hidden="true"><path d="M0-9 L4 2 L0 0 L-4 2 Z" fill="var(--teal)"/><path d="M0 9 L4 2 L0 0 L-4 2 Z" fill="var(--faint)"/></svg>
+        </button>
+        <button class="btn" id="btnLabels" type="button" aria-pressed="true">Labels</button>
+        <button class="btn" id="btnLamps" type="button" aria-pressed="true" title="Street lamps mapped in OpenStreetMap">Lamps</button>
+        <button class="btn" id="btnLegend" type="button" aria-pressed="true" aria-controls="legend">Legend</button>
+        <select class="btn" id="quality" aria-label="Detail level">
+          <option value="auto">Auto detail</option>
+          <option value="lite">Lite</option>
+          <option value="low">Low detail</option>
+          <option value="medium">Medium detail</option>
+          <option value="high">High detail</option>
+        </select>
+        <button class="btn" id="btnAbout" type="button" aria-controls="about">About</button>
+      </div>
+    </div>
+
+    <div class="row mid">
+      <div class="stack left">
+        <section class="panel demo" id="demo" hidden aria-label="Try the map">
+          <h2>Try it</h2>
+          <div class="demo-buttons">
+            <button class="btn solid" type="button" data-pick="start">Set start</button>
+            <button class="btn solid" type="button" data-pick="destination">Set destination</button>
+            <button class="btn solid" type="button" data-pick="hazard">Report hazard</button>
+            <button class="btn" type="button" id="demoReset">Reset sample</button>
+          </div>
+          <label class="check"><input type="checkbox" id="demoRisk"> Risk overlay <b>synthetic demo</b></label>
+          <p id="demoNote"></p>
+        </section>
+        <div class="panel notice" id="notice" role="status" hidden></div>
+      </div>
+
+      <aside class="panel legend" id="legend" aria-label="Map legend">
+        <h2>Map legend</h2>
+        <ul id="legendRoutes" class="keys"></ul>
+        <ul class="keys">
+          <li><i class="key hz confirmed"></i><span>Hazard report<small>locally confirmed</small></span></li>
+          <li><i class="key hz unverified"></i><span>Hazard report<small>unverified, not scored</small></span></li>
+          <li><i class="key lamp"></i><span>Mapped street lamp<small>unmapped streets may still be lit</small></span></li>
+          <li><i class="key bld"></i><span>Buildings</span></li>
+          <li><i class="key water"></i><span>Lakes and tanks</span></li>
+          <li><i class="key green"></i><span>Parks and green space</span></li>
+          <li id="legendRisk" hidden><i class="key risk"></i><span>Risk overlay<small id="legendRiskNote">taller = higher estimate</small></span></li>
+        </ul>
+        <p class="fine">Estimates from the data available. Not a guarantee of safety.</p>
+      </aside>
+    </div>
+
+    <div class="row bottom">
+      <div class="panel readout" aria-live="off">
+        <div class="where" id="where">Bengaluru</div>
+        <div class="coords" id="coords">12.9716° N  77.5946° E</div>
+      </div>
+
+      <section class="panel routes" id="routeCard" hidden aria-label="Routes">
+        <ul id="routeList"></ul>
+        <p class="fine" id="routeNote">Estimated walking time. Risk indicators are experimental estimates, not a guarantee of safety.</p>
+      </section>
+
+      <div class="panel places">
+        <span class="eyebrow">Fly to</span>
+        <div class="chips" id="places" role="list" aria-label="Fly to a place"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="synthetic" hidden>Synthetic demo overlay · random values · not incident data</div>
+  <div id="attribution">© OpenStreetMap contributors · Overture Maps · GHSL (JRC)</div>
+
+  <aside id="about" hidden aria-label="About this map">
+    <button class="btn close" id="aboutClose" type="button">Close</button>
+    <h2>About this map</h2>
+    <p>Every building, road, lake, park and street lamp is placed from open map data on one metric grid centred on Bengaluru (38 × 34 km). Routes, hazard reports and risk values are drawn exactly as the SafeNisha app supplies them. The map itself does not estimate risk.</p>
+    <h3>Where building heights come from</h3>
+    <div class="bars" id="heightBars"></div>
+    <p id="heightNote"></p>
+    <h3>Real</h3>
+    <ul>
+      <li>Building footprints and positions</li>
+      <li>Roads, footways, rail and metro alignments</li>
+      <li>Lakes, tanks, drains, parks and green space</li>
+      <li>Street lamps that volunteers have mapped in OpenStreetMap</li>
+      <li>Neighbourhood, landmark and station names</li>
+    </ul>
+    <h3>Generated</h3>
+    <ul>
+      <li>A ±15% height variation between neighbouring buildings where only an area estimate exists</li>
+      <li>Shading, haze, glow and the moving pulses on a route</li>
+    </ul>
+    <h3>Limits</h3>
+    <ul>
+      <li>Most heights are area averages on a ~90 m grid from 2018, so individual towers are often too low and new buildings may be missing.</li>
+      <li>Street lamps are only the ones mapped so far. A street without a lamp on this map is not known to be unlit.</li>
+      <li>Flyovers and underpasses are drawn flat on the ground.</li>
+      <li>This is a prototype. A lower estimated risk is an estimate, never a promise of safety.</li>
+    </ul>
+    <h3>Performance on this device</h3>
+    <p>The map draws only when something moves, processes tiles on background threads and skips buildings too small to see at their distance. To measure this laptop or phone:</p>
+    <div class="about-actions">
+      <button class="btn solid" id="btnBench" type="button">Run 24-second benchmark</button>
+      <button class="btn solid" id="btnStats" type="button" aria-pressed="false">Show live stats</button>
+    </div>
+    <h3>Controls</h3>
+    <ul>
+      <li>Drag to move · scroll or pinch to zoom · right-drag or Ctrl-drag to turn and tilt</li>
+      <li>Keyboard: W A S D or arrows to move, Q / E to turn, + / − to zoom</li>
+    </ul>
+    <h3>Data</h3>
+    <ul id="sources"></ul>
+  </aside>
+
+  <div id="loading">
+    <div class="card">
+      <div class="eyebrow">SafeNisha</div>
+      <h1>BENGALURU</h1>
+      <p id="loadText">Reading the map index</p>
+      <div class="meter"><i id="loadBar"></i></div>
+      <div class="err" id="loadErr" hidden></div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+<!--/body-->
+</body>
+</html>
